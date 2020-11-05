@@ -1,0 +1,25 @@
+.TH VCROP 1
+.SH NAME
+vcrop \- crop image visually
+.SH SYNOPSIS
+.B vcrop
+[
+.I file
+]
+.SH DESCRIPTION
+.I Vcrop
+displays an image read either from
+.B file
+or from
+.B standard input
+and allows to crop it interactively.
+.PP
+Button 1 initiate the selection of the area to preserve.
+.PP
+Button 3 brings up a menu of actions.
+.SH "SEE ALSO"
+.IR crop (1)
+.SH AUTHOR
+phil9
+.SH LICENSE
+MIT
