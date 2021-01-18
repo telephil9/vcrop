@@ -4,6 +4,11 @@
 #include <event.h>
 #include <keyboard.h>
 
+enum
+{
+	Threshold = 5,
+};
+
 Image *bg;
 Image *p;
 Image *n;
@@ -27,7 +32,7 @@ crop(Mouse *m)
 	Image *i;
 
 	r = egetrect(1, m);
-	if(eqrect(r, ZR) || badrect(r))
+	if(eqrect(r, ZR) || badrect(r) || (Dx(r)<Threshold && Dy(r)<Threshold))
 		return;
 	i = allocimage(display, Rect(0,0,Dx(r),Dy(r)), screen->chan, 0, DNofill);
 	if(i==nil)
