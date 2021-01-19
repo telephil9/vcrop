@@ -12,9 +12,10 @@ enum
 Image *bg;
 Image *p;
 Image *n;
+Point pos;
+enum { Mcrop, Mundo, Msave, Mexit };
 char  *menustr[] = { "crop", "undo", "save", "exit", 0 };
 Menu   menu = { menustr };
-enum { Mcrop, Mundo, Msave, Mexit };
 
 void
 eresized(int new)
@@ -23,6 +24,20 @@ eresized(int new)
 		sysfatal("cannot reattach: %r");
 	draw(screen, screen->r, bg, nil, ZP);
 	draw(screen, screen->r, n, nil, n->r.min);
+}
+
+void
+translate(Point d)
+{
+	Rectangle r, nr;
+
+	if(d.x==0 && d.y==0)
+		return;
+	r = rectaddpt(n->r, addpt(pos, screen->r.min));
+	pos = addpt(pos, d);
+	nr = rectaddpt(r, d);
+	draw(screen, screen->r, bg, nil, ZP);
+	draw(screen, nr, n, nil, n->r.min);
 }
 
 void
@@ -42,6 +57,7 @@ crop(Mouse *m)
 		freeimage(p);
 	p = n;
 	n = i;
+	pos = subpt(ZP, n->r.min);
 	eresized(0);
 }
 
@@ -107,6 +123,8 @@ void
 main(int argc, char *argv[])
 {
 	Event ev;
+	Mouse m;
+	Point o;
 	int e, fd;
 
 	if(argc > 2)
@@ -126,14 +144,25 @@ main(int argc, char *argv[])
 		sysfatal("readimage: %r");
 	close(fd);
 	p = nil;
+	pos = subpt(ZP, n->r.min);
 	eresized(0);
 	for(;;){
 		e = event(&ev);
 		switch(e){
 		case Emouse:
-			if(ev.mouse.buttons==1)
+			if(ev.mouse.buttons==1){
+				m = ev.mouse;
+				for(;;) {
+					o = m.xy;
+					m = emouse();
+					if((m.buttons & 1) == 0)
+						break;
+					translate(subpt(m.xy, o));
+				}
+			}else if(ev.mouse.buttons==2){
+				ev.mouse.buttons = 1;
 				crop(&ev.mouse);
-			else if(ev.mouse.buttons==4)
+			}else if(ev.mouse.buttons==4)
 				menu3hit(&ev.mouse);
 			break;
 		case Ekeyboard:

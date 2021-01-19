@@ -14,7 +14,9 @@ or from
 .B standard input
 and allows to crop it interactively.
 .PP
-Button 1 initiate the selection of the area to preserve.
+Button 1 pans the image within the window
+.PP
+Button 2 triggers the cropping area selection. Area can then selected by sweeping Button 1.
 .PP
 Button 3 brings up a menu of actions.
 .SH "SEE ALSO"
