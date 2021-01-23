@@ -12,7 +12,7 @@ enum
 Image *bg;
 Image *p;
 Image *n;
-Point pos;
+Point pos, oldpos;
 enum { Mcrop, Mundo, Msave, Mexit };
 char  *menustr[] = { "crop", "undo", "save", "exit", 0 };
 Menu   menu = { menustr };
@@ -57,6 +57,7 @@ crop(Mouse *m)
 		freeimage(p);
 	p = n;
 	n = i;
+	oldpos = pos;
 	pos = subpt(ZP, n->r.min);
 	eresized(0);
 }
@@ -87,6 +88,7 @@ undo(void)
 	freeimage(n);
 	n = p;
 	p = nil;
+	pos = oldpos;
 	eresized(0);
 }
 
@@ -145,6 +147,7 @@ main(int argc, char *argv[])
 	close(fd);
 	p = nil;
 	pos = subpt(ZP, n->r.min);
+	oldpos = pos;
 	eresized(0);
 	for(;;){
 		e = event(&ev);
