@@ -23,7 +23,7 @@ eresized(int new)
 	if(new && getwindow(display, Refnone)<0)
 		sysfatal("cannot reattach: %r");
 	draw(screen, screen->r, bg, nil, ZP);
-	draw(screen, screen->r, n, nil, n->r.min);
+	draw(screen, rectaddpt(n->r, addpt(pos, screen->r.min)), n, nil, n->r.min);
 }
 
 void
