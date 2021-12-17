@@ -44,15 +44,24 @@ void
 crop(Mouse *m)
 {
 	Rectangle r;
+	Point o;
 	Image *i;
 
 	r = egetrect(1, m);
 	if(eqrect(r, ZR) || badrect(r) || (Dx(r)<Threshold && Dy(r)<Threshold))
 		return;
-	i = allocimage(display, Rect(0,0,Dx(r),Dy(r)), screen->chan, 0, DNofill);
+	o = subpt(r.min, screen->r.min);
+	o = addpt(n->r.min, o);
+	o = subpt(o, addpt(n->r.min, pos));
+	/* clamp rect to image bounds */
+	if(o.x < n->r.min.x) o.x = n->r.min.x;
+	if(o.y < n->r.min.y) o.y = n->r.min.y;
+	if((o.x + Dx(r)) > n->r.max.x) r.max.x = r.min.x + n->r.max.x - o.x;
+	if((o.y + Dy(r)) > n->r.max.y) r.max.y = r.min.y + n->r.max.y - o.y;
+	i = allocimage(display, r, screen->chan, 0, DNofill);
 	if(i==nil)
 		sysfatal("allocimage: %r");
-	draw(i, i->r, screen, nil, r.min);
+	draw(i, i->r, n, nil, o);
 	if(p)
 		freeimage(p);
 	p = n;
