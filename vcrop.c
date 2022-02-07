@@ -58,7 +58,7 @@ crop(Mouse *m)
 	if(o.y < n->r.min.y) o.y = n->r.min.y;
 	if((o.x + Dx(r)) > n->r.max.x) r.max.x = r.min.x + n->r.max.x - o.x;
 	if((o.y + Dy(r)) > n->r.max.y) r.max.y = r.min.y + n->r.max.y - o.y;
-	i = allocimage(display, r, screen->chan, 0, DNofill);
+	i = allocimage(display, r, n->chan, 0, DTransparent);
 	if(i==nil)
 		sysfatal("allocimage: %r");
 	draw(i, i->r, n, nil, o);
