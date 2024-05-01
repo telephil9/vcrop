@@ -1,7 +1,8 @@
 #include <u.h>
 #include <libc.h>
+#include <thread.h>
 #include <draw.h>
-#include <event.h>
+#include <mouse.h>
 #include <keyboard.h>
 
 enum
@@ -9,6 +10,15 @@ enum
 	Threshold = 5,
 };
 
+enum
+{
+	Emouse,
+	Eresize,
+	Ekeyboard,
+};
+
+Mousectl *mctl;
+Keyboardctl *kctl;
 Image *bg;
 Image *p;
 Image *n;
@@ -18,12 +28,11 @@ char  *menustr[] = { "crop", "undo", "save", "exit", 0 };
 Menu   menu = { menustr };
 
 void
-eresized(int new)
+redraw(void)
 {
-	if(new && getwindow(display, Refnone)<0)
-		sysfatal("cannot reattach: %r");
 	draw(screen, screen->r, bg, nil, ZP);
 	draw(screen, rectaddpt(n->r, addpt(pos, screen->r.min)), n, nil, n->r.min);
+	flushimage(display, 1);
 }
 
 void
@@ -38,16 +47,17 @@ translate(Point d)
 	nr = rectaddpt(r, d);
 	draw(screen, screen->r, bg, nil, ZP);
 	draw(screen, nr, n, nil, n->r.min);
+	flushimage(display, 1);
 }
 
 void
-crop(Mouse *m)
+crop(void)
 {
 	Rectangle r;
 	Point o;
 	Image *i;
 
-	r = egetrect(1, m);
+	r = getrect(1, mctl);
 	if(eqrect(r, ZR) || badrect(r) || (Dx(r)<Threshold && Dy(r)<Threshold))
 		return;
 	o = subpt(r.min, screen->r.min);
@@ -68,17 +78,17 @@ crop(Mouse *m)
 	n = i;
 	oldpos = pos;
 	pos = subpt(ZP, n->r.min);
-	eresized(0);
+	redraw();
 }
 
 void
-save(Mouse *m)
+save(void)
 {
-	char buf[255];
+	char buf[4096] = {0};
 	int i, fd;
 
-	i = eenter("Save as:", buf, sizeof buf, m);
-	if(i<0)
+	i = enter("Save as:", buf, sizeof buf, mctl, kctl, nil);
+	if(i<=0)
 		return;
 	fd = create(buf, OWRITE, 0644);
 	if(fd<0)
@@ -98,45 +108,50 @@ undo(void)
 	n = p;
 	p = nil;
 	pos = oldpos;
-	eresized(0);
+	redraw();
 }
 
 void
-menu3hit(Mouse *m)
+menu3hit(void)
 {
 	int i;
 
-	i = emenuhit(3, m, &menu);
+	i = menuhit(3, mctl, &menu, nil);
 	switch(i){
 	case Mcrop:
-		m->buttons = 1;
-		crop(m);
+		crop();
 		break;
 	case Mundo:
 		undo();
 		break;
 	case Msave:
-		save(m);
+		save();
 		break;
 	case Mexit:
-		exits(nil);
+		threadexitsall(nil);
 	}
 }
 
 void
 usage(char *n)
 {
-	fprint(2, "usage: %s [image]\n", n);
+	fprint(2, "usage: %s <[image]>\n", n);
 	exits("usage");
 }
 
 void
-main(int argc, char *argv[])
+threadmain(int argc, char *argv[])
 {
-	Event ev;
 	Mouse m;
+	Rune k;
 	Point o;
-	int e, fd;
+	int fd;
+	Alt a[] = {
+		{ nil, &m,  CHANRCV },
+		{ nil, nil, CHANRCV },
+		{ nil, &k,  CHANRCV },
+		{ nil, nil, CHANEND },
+	};
 
 	if(argc > 2)
 		usage(argv[0]);
@@ -148,7 +163,14 @@ main(int argc, char *argv[])
 	}
 	if(initdraw(nil, nil, "vcrop")<0)
 		sysfatal("initdraw: %r");
-	einit(Emouse|Ekeyboard);
+	display->locking = 0;
+	if((mctl = initmouse(nil, screen)) == nil)
+		sysfatal("initmouse: %r");
+	if((kctl = initkeyboard(nil)) == nil)
+		sysfatal("initkeyboard: %r");
+	a[Emouse].c = mctl->c;
+	a[Eresize].c = mctl->resizec;
+	a[Ekeyboard].c = kctl->c;
 	bg = allocimage(display, Rect(0,0,1,1), screen->chan, 1, 0xCCCCCCFF);
 	n = readimage(display, fd, 0);
 	if(n==nil)
@@ -157,29 +179,33 @@ main(int argc, char *argv[])
 	p = nil;
 	pos = subpt(ZP, n->r.min);
 	oldpos = pos;
-	eresized(0);
+	redraw();
 	for(;;){
-		e = event(&ev);
-		switch(e){
+		switch(alt(a)){
 		case Emouse:
-			if(ev.mouse.buttons==1){
-				m = ev.mouse;
+			if(m.buttons==1){
 				for(;;) {
 					o = m.xy;
-					m = emouse();
-					if((m.buttons & 1) == 0)
+					if(!readmouse(mctl))
 						break;
-					translate(subpt(m.xy, o));
+					if((mctl->buttons & 1) == 0)
+						break;
+					translate(subpt(mctl->xy, o));
 				}
-			}else if(ev.mouse.buttons==2){
-				ev.mouse.buttons = 1;
-				crop(&ev.mouse);
-			}else if(ev.mouse.buttons==4)
-				menu3hit(&ev.mouse);
+			}else if(m.buttons==2){
+				mctl->buttons = 1;
+				crop();
+			}else if(m.buttons==4)
+				menu3hit();
+			break;
+		case Eresize:
+			if(getwindow(display, Refnone)<0)
+				sysfatal("cannot reattach: %r");
+			redraw();
 			break;
 		case Ekeyboard:
-			if(ev.kbdc==Kdel)
-				exits(nil);
+			if(k==Kdel)
+				threadexitsall(nil);
 			break;
 		}
 	}
